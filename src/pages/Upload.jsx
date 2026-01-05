@@ -281,6 +281,7 @@ const Upload = () => {
             onSave={handleSave}
             cssMaxWidth={700}
             cssMaxHeight={500}
+          />
         )}
       </IonContent>
     </IonPage>
