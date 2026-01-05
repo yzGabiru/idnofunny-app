@@ -245,10 +245,12 @@ const Upload = () => {
               id="file-upload"
               style={{ display: 'none' }}
             />
-            <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
-              <IonIcon icon={imageOutline} slot="start" />
-              Selecionar Imagem
-            </IonButton>
+            {!isEditorOpen && (
+              <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
+                <IonIcon icon={imageOutline} slot="start" />
+                Selecionar Imagem
+              </IonButton>
+            )}
 
             <div className="upload-placeholder">
                 <IonIcon icon={cloudUploadOutline} size="large" color="medium" />
