@@ -16,10 +16,8 @@ import {
 } from '@ionic/react';
 import { cloudUploadOutline, imageOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import FilerobotImageEditor, {
-  TABS,
-  TOOLS,
-} from 'react-filerobot-image-editor';
+import { PinturaEditor } from '@pqina/react-pintura';
+import '@pqina/pintura/pintura.css';
 import api from '../services/api';
 import './Upload.css'; // Certifique-se de que este arquivo existe, mesmo que vazio por enquanto
 
@@ -56,7 +54,6 @@ const Upload = () => {
 
   const [imageSrc, setImageSrc] = useState(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editedBlob, setEditedBlob] = useState(null);
 
   // Limpa a URL temporária quando o componente desmonta ou a imagem muda
   useEffect(() => {
@@ -89,41 +86,32 @@ const Upload = () => {
     }
   };
 
-  // 2. Fechar Editor (X ou Cancelar interno)
+  // 2. Fechar Editor
   const closeEditor = () => {
     setIsEditorOpen(false);
     if (imageSrc) {
-        URL.revokeObjectURL(imageSrc);
-        setImageSrc(null);
+      URL.revokeObjectURL(imageSrc);
+      setImageSrc(null);
     }
-    setEditedBlob(null);
   };
 
   // 3. Salvar Edição
-  const handleSave = async (editedImageObject) => {
-      setLoading(true);
-      try {
-          // O editor retorna base64. Convertemos para Blob para envio eficiente.
-          const res = await fetch(editedImageObject.imageBase64);
-          const blob = await res.blob();
-          setEditedBlob(blob);
-          setIsEditorOpen(false);
-          // Nota: Não limpamos o imageSrc aqui imediatamente pois ele ainda é a fonte original
-          // Ele será limpo no useEffect ou no closeEditor se o usuário cancelar depois.
-
-          // --- AQUI INICIA O UPLOAD AUTOMATICAMENTE APÓS SALVAR A EDIÇÃO ---
-          await handleUpload(blob);
-
-      } catch (error) {
-          console.error("Erro ao processar imagem editada:", error);
-           presentToast({
-              message: 'Erro ao processar a edição da imagem.',
-              duration: 3000,
-              color: 'danger',
-          });
-      } finally {
-          setLoading(false);
-      }
+  const handleSave = async (imageState) => {
+    setLoading(true);
+    try {
+      const blob = await fetch(imageState.dest).then(res => res.blob());
+      setIsEditorOpen(false);
+      await handleUpload(blob);
+    } catch (error) {
+      console.error("Erro ao processar imagem editada:", error);
+      presentToast({
+        message: 'Erro ao processar a edição da imagem.',
+        duration: 3000,
+        color: 'danger',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -275,9 +263,12 @@ const Upload = () => {
 
         <IonLoading isOpen={loading} message={'Processando e enviando...'} />
 
-        {/* --- EDITOR DE IMAGEM (Tela Cheia) --- */}
+        {/* --- EDITOR DE IMAGEM --- */}
         {isEditorOpen && imageSrc && (
-          <div
+          <PinturaEditor
+            src={imageSrc}
+            onProcess={({ dest }) => handleSave({ dest })}
+            onClose={closeEditor}
             style={{
               position: 'fixed',
               top: 0,
@@ -286,77 +277,9 @@ const Upload = () => {
               height: '100vh',
               zIndex: 99999,
               backgroundColor: '#000',
-              // Ajuste de touchAction para não bloquear eventos de clique/tap em elementos interativos
-              touchAction: 'manipulation',
             }}
-          >
-            <ErrorBoundary onError={() => {
-                // Se o editor quebrar por qualquer motivo, fecha o editor e mostra toast
-                setIsEditorOpen(false);
-                presentToast({ message: 'Erro ao abrir editor. Envio sem edição disponível.', duration: 3000, color: 'warning' });
-            }}>
-              <FilerobotImageEditor
-                source={imageSrc}
-                onSave={(editedImageObject, designState) => handleSave(editedImageObject)}
-                onClose={closeEditor}
-                // Habilita o botão 'X' de fechar no canto superior esquerdo
-                withCloseButton={true}
-
-                // Configurações das Ferramentas
-                tabsIds={[TABS.ADJUST, TABS.ANNOTATE]}
-                defaultTabId={TABS.ADJUST}
-                defaultToolId={TOOLS.CROP}
-
-                // Força o corte quadrado (1:1) para o Feed
-                Crop={{
-                  presetsItems: [
-                    {
-                      titleKey: 'Quadrado (Feed)',
-                      descriptionKey: '1:1',
-                      ratio: 1 / 1,
-                      selected: true,
-                    },
-                    {
-                      titleKey: 'Original',
-                      descriptionKey: 'Livre',
-                      ratio: 'custom',
-                    },
-                  ],
-                  lockCropAreaAt: 'custom', 
-                }}
-
-                // Traduções para Português
-                translations={{
-                  save: 'Salvar',
-                  cancel: 'Cancelar', // Este texto será ocultado pelo CSS acima
-                  crop: 'Recortar',
-                  annotate: 'Texto & Desenho',
-                  adjust: 'Ajustar',
-                  filter: 'Filtros',
-                  watermark: 'Marca d\'água',
-                  goBack: 'Voltar',
-                  reset: 'Redefinir',
-                  revert: 'Desfazer',
-                  redo: 'Refazer',
-                  or: 'ou',
-                  ...{
-                    'header.close_modal': 'Fechar editor',
-                    'toolbar.download': 'Salvar',
-                    'toolbar.save': 'Salvar',
-                    'toolbar.apply': 'Aplicar',
-                    'toolbar.cancel': 'Cancelar',
-                  }
-                }}
-
-                // Tema para combinar com Ionic
-                theme={{
-                  palette: {
-                    'bg-primary-active': 'var(--ion-color-primary, #3880ff)',
-                  }
-                }}
-              />
-            </ErrorBoundary>
-          </div>
+            // Configurações adicionais podem ser feitas aqui
+          />
         )}
       </IonContent>
     </IonPage>
