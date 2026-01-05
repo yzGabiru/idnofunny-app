@@ -16,8 +16,7 @@ import {
 } from '@ionic/react';
 import { cloudUploadOutline, imageOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import { PinturaEditor } from '@pqina/react-pintura';
-import '@pqina/pintura/pintura.css';
+import ImageEditor from '@ozdemircibaris/react-image-editor';
 import api from '../services/api';
 import './Upload.css'; // Certifique-se de que este arquivo existe, mesmo que vazio por enquanto
 
@@ -265,10 +264,10 @@ const Upload = () => {
 
         {/* --- EDITOR DE IMAGEM --- */}
         {isEditorOpen && imageSrc && (
-          <PinturaEditor
-            src={imageSrc}
-            onProcess={({ dest }) => handleSave({ dest })}
-            onClose={closeEditor}
+          <ImageEditor
+            image={imageSrc}
+            tools={['crop', 'draw', 'shape', 'text']}
+            onSave={(blob) => handleSave(blob)}
             style={{
               position: 'fixed',
               top: 0,
@@ -278,7 +277,6 @@ const Upload = () => {
               zIndex: 99999,
               backgroundColor: '#000',
             }}
-            // Configurações adicionais podem ser feitas aqui
           />
         )}
       </IonContent>
