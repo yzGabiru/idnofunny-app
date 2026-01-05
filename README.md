@@ -1,0 +1,1 @@
+# idnofunny-app
