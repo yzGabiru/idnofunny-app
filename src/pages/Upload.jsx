@@ -16,7 +16,7 @@ import {
 } from '@ionic/react';
 import { cloudUploadOutline, imageOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import ReactImageEditor from 'toast-ui.react-image-editor';
+import ReactImageEditor from '@toast-ui/react-image-editor';
 import api from '../services/api';
 import './Upload.css'; // Certifique-se de que este arquivo existe, mesmo que vazio por enquanto
 
