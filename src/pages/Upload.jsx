@@ -238,19 +238,17 @@ const Upload = () => {
 
         <IonCard className="upload-card">
           <IonCardContent className="upload-card-content">
-             <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                id="file-upload"
-                style={{ display: 'none' }}
-              />
-             <label htmlFor="file-upload">
-                <IonButton expand="block" color="primary" component="span">
-                    <IonIcon icon={imageOutline} slot="start" />
-                    Selecionar Imagem
-                </IonButton>
-            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              id="file-upload"
+              style={{ display: 'none' }}
+            />
+            <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
+              <IonIcon icon={imageOutline} slot="start" />
+              Selecionar Imagem
+            </IonButton>
 
             <div className="upload-placeholder">
                 <IonIcon icon={cloudUploadOutline} size="large" color="medium" />
