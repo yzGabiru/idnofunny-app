@@ -1,0 +1,27 @@
+/* Dark Theme por padrão */
+:root {
+  /* Cor Primária (Um Roxo/Azul vibrante) */
+  --ion-color-primary: #5b4ddb;
+  --ion-color-primary-rgb: 91, 77, 219;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #5044c0;
+  --ion-color-primary-tint: #6b5fdf;
+
+  /* Fundo Geral (Dark, mas não preto absoluto para cansar menos a vista) */
+  --ion-background-color: #0f0f0f;
+  --ion-background-color-rgb: 15, 15, 15;
+
+  /* Texto */
+  --ion-text-color: #ffffff;
+  --ion-text-color-rgb: 255, 255, 255;
+
+  /* Cor dos Cards/Items (Um pouco mais claro que o fundo) */
+  --ion-item-background: #1a1a1a;
+  --ion-card-background: #1a1a1a;
+}
+
+/* Ajustes globais de fonte e bordas */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
