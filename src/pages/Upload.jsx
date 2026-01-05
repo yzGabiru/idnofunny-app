@@ -16,7 +16,7 @@ import {
 } from '@ionic/react';
 import { cloudUploadOutline, imageOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import { ImageEditor } from '@ozdemircibaris/react-image-editor';
+import ReactImageEditor from 'toast-ui.react-image-editor';
 import api from '../services/api';
 import './Upload.css'; // Certifique-se de que este arquivo existe, mesmo que vazio por enquanto
 
@@ -52,7 +52,8 @@ const Upload = () => {
   const [loading, setLoading] = useState(false);
 
   const [imageSrc, setImageSrc] = useState(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [imageBlob, setImageBlob] = useState(null);
 
   // Limpa a URL temporária quando o componente desmonta ou a imagem muda
   useEffect(() => {
@@ -85,31 +86,24 @@ const Upload = () => {
     }
   };
 
-  // 2. Fechar Editor
-  const closeEditor = () => {
-    setIsEditorOpen(false);
-    if (imageSrc) {
-      URL.revokeObjectURL(imageSrc);
-      setImageSrc(null);
+  // 2. Escolher Editar ou Prosseguir
+  const handleEditChoice = (edit) => {
+    if (edit) {
+      setIsEditing(true);
+    } else {
+      setIsEditing(false);
+      history.push('/upload-details');
     }
   };
 
   // 3. Salvar Edição
-  const handleSave = async (blob) => {
-    setLoading(true);
-    try {
-      setIsEditorOpen(false);
-      await handleUpload(blob);
-    } catch (error) {
-      console.error("Erro ao processar imagem editada:", error);
-      presentToast({
-        message: 'Erro ao processar a edição da imagem.',
-        duration: 3000,
-        color: 'danger',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSave = (image) => {
+    const link = document.createElement('a');
+    link.download = 'edited-image.png';
+    link.href = image;
+    link.click();
+    setIsEditing(false);
+    history.push('/upload-details');
   };
 
 
@@ -245,11 +239,23 @@ const Upload = () => {
               id="file-upload"
               style={{ display: 'none' }}
             />
-            {!isEditorOpen && (
-              <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
-                <IonIcon icon={imageOutline} slot="start" />
-                Selecionar Imagem
-              </IonButton>
+            {!isEditing && (
+              <>
+                <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
+                  <IonIcon icon={imageOutline} slot="start" />
+                  Selecionar Imagem
+                </IonButton>
+                {imageSrc && (
+                  <>
+                    <IonButton expand="block" color="secondary" onClick={() => handleEditChoice(true)}>
+                      Editar Imagem
+                    </IonButton>
+                    <IonButton expand="block" color="tertiary" onClick={() => handleEditChoice(false)}>
+                      Prosseguir sem Editar
+                    </IonButton>
+                  </>
+                )}
+              </>
             )}
 
             <div className="upload-placeholder">
@@ -262,21 +268,19 @@ const Upload = () => {
         <IonLoading isOpen={loading} message={'Processando e enviando...'} />
 
         {/* --- EDITOR DE IMAGEM --- */}
-        {isEditorOpen && imageSrc && (
-          <ImageEditor
-            image={imageSrc}
-            tools={['crop', 'draw', 'shape', 'text']}
-            onSave={(blob) => handleSave(blob)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              zIndex: 99999,
-              backgroundColor: '#000',
+        {isEditing && imageSrc && (
+          <ReactImageEditor
+            includeUI={{
+              loadImage: {
+                path: imageSrc,
+                name: 'Minha Imagem'
+              },
+              theme: '#333',
+              menuBarPosition: 'bottom'
             }}
-          />
+            onSave={handleSave}
+            cssMaxWidth={700}
+            cssMaxHeight={500}
         )}
       </IonContent>
     </IonPage>
