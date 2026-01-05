@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { formatRelativeTime } from '../utils/time';
 import { 
   IonPage, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent,
@@ -132,14 +132,17 @@ const MemeDetail = () => {
 
   const currentUser = localStorage.getItem('username');
 
-  const fetchMeme = async () => {
+  const fetchMeme = useCallback(async () => {
     try {
       const res = await api.get(`/memes/${id}`);
       setMeme(res.data);
     } catch (error) { console.error("Erro ao carregar meme", error); }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchMeme(); }, [id]);
+  useEffect(() => { 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchMeme(); 
+  }, [fetchMeme]);
 
   const { rootComments, repliesMap } = useMemo(() => {
     if (!meme || !meme.comments) return { rootComments: [], repliesMap: {} };

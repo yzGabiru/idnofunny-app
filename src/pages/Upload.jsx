@@ -1,289 +1,315 @@
 import React, { useState, useEffect } from 'react';
 import {
-  IonPage,
-  IonContent,
-  IonHeader,
-  IonToolbar,
-  IonButtons,
-  IonBackButton,
-  IonTitle,
-  IonButton,
-  IonIcon,
-  IonLoading,
-  useIonToast,
-  IonCard,
-  IonCardContent,
+  IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle,
+  IonButton, IonIcon, IonLoading, useIonToast, IonItem, IonLabel, IonInput, IonSelect, IonSelectOption
 } from '@ionic/react';
-import { cloudUploadOutline, imageOutline } from 'ionicons/icons';
+import { 
+  cloudUploadOutline, createOutline, arrowForwardOutline, checkmarkDoneOutline, closeOutline, timeOutline 
+} from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import ReactImageEditor from '@toast-ui/react-image-editor';
+import FabricImageEditor from '../components/ImageEditor/FabricImageEditor'; 
 import api from '../services/api';
-import './Upload.css'; // Certifique-se de que este arquivo existe, mesmo que vazio por enquanto
+import './Upload.css';
 
-// ErrorBoundary mínimo para capturar falhas do editor e permitir fallback seguro
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, info) {
-    console.error('ErrorBoundary caught:', error, info);
-    if (this.props && typeof this.props.onError === 'function') {
-      try { this.props.onError(error, info); } catch (e) { /* swallow */ }
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return null; // caller handles fallback (we already call onError)
-    }
-    return this.props.children;
-  }
-}
+const RATE_LIMIT_SECONDS = 60; // 60 segundos entre uploads
 
 const Upload = () => {
   const history = useHistory();
   const [presentToast] = useIonToast();
+  
+  const [step, setStep] = useState('select'); 
+  const [imageSrc, setImageSrc] = useState(null);
+  const [finalBlob, setFinalBlob] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const [title, setTitle] = useState('');
+  const [hashtags, setHashtags] = useState('');
+  const [categoryId, setCategoryId] = useState('1');
+  const [categories, setCategories] = useState([]); // State for categories
   const [loading, setLoading] = useState(false);
 
-  const [imageSrc, setImageSrc] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [imageBlob, setImageBlob] = useState(null);
+  // Rate Limiting States
+  const [timeLeft, setTimeLeft] = useState(0);
 
-  // Limpa a URL temporária quando o componente desmonta ou a imagem muda
+  // Fetch Categories on Mount
   useEffect(() => {
-    return () => {
-      if (imageSrc) {
-        URL.revokeObjectURL(imageSrc);
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/categories');
+        if (response.data && Array.isArray(response.data)) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar categorias:", error);
+        presentToast("Erro ao carregar categorias. Usando padrão.", 2000, "warning");
+        // Fallback or empty list - component will handle it
       }
     };
-  }, [imageSrc]);
+    fetchCategories();
+  }, []);
 
-  // 1. Seleção de Arquivo
-  const handleFileChange = (event) => {
-    if (event.target.files && event.target.files.length > 0) {
-      const file = event.target.files[0];
-      // Validação simples de tipo
-      if (!file.type.startsWith('image/')) {
-         presentToast({
-            message: 'Por favor, selecione um arquivo de imagem válido.',
-            duration: 3000,
-            color: 'warning',
-         });
-         return;
+  // Check rate limit on mount and when entering details
+  useEffect(() => {
+    const checkRateLimit = () => {
+      const lastUpload = localStorage.getItem('lastUploadTime');
+      if (lastUpload) {
+        const diff = Math.floor((Date.now() - parseInt(lastUpload)) / 1000);
+        if (diff < RATE_LIMIT_SECONDS) {
+          setTimeLeft(RATE_LIMIT_SECONDS - diff);
+        } else {
+          setTimeLeft(0);
+        }
       }
+    };
+    checkRateLimit();
+    // Check periodically if blocked
+    const interval = setInterval(checkRateLimit, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
+  // Formats seconds into MM:SS
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Cleanups
+  useEffect(() => {
+    return () => {
+      if (imageSrc && imageSrc.startsWith('blob:')) URL.revokeObjectURL(imageSrc);
+      if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+    };
+  }, [imageSrc, previewUrl]);
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        presentToast("Selecione uma imagem válida", 2000, "warning");
+        return;
+      }
       const url = URL.createObjectURL(file);
       setImageSrc(url);
-      setIsEditorOpen(true);
-      // Limpa o input para permitir selecionar a mesma imagem novamente se cancelar
-      event.target.value = '';
+      setStep('decision');
+      e.target.value = '';
     }
   };
 
-  // 2. Escolher Editar ou Prosseguir
-  const handleEditChoice = (edit) => {
-    if (edit) {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false);
-      history.push('/upload-details');
+  const handleSkipEdit = async () => {
+    try {
+      const res = await fetch(imageSrc);
+      const blob = await res.blob();
+      setFinalBlob(blob);
+      setPreviewUrl(imageSrc); // Use the same URL for preview
+      setStep('details');
+    } catch (e) {
+      console.error(e);
+      presentToast("Erro ao processar imagem", 2000, "danger");
     }
   };
 
-  // 3. Salvar Edição
-  const handleSave = (image) => {
-    const link = document.createElement('a');
-    link.download = 'edited-image.png';
-    link.href = image;
-    link.click();
-    setIsEditing(false);
-    history.push('/upload-details');
+  const handleEditorSave = (editedBlob) => {
+    setFinalBlob(editedBlob);
+    setPreviewUrl(URL.createObjectURL(editedBlob));
+    setStep('details');
   };
 
-
-  // 4. Enviar para API
-  const handleUpload = async (blobToUpload) => {
-    if (!blobToUpload) {
-      presentToast({
-        message: 'Nenhuma imagem pronta para envio.',
-        duration: 2000,
-        color: 'warning',
-      });
+  const handlePost = async () => {
+    if (timeLeft > 0) {
+      presentToast(`Aguarde ${formatTime(timeLeft)} para postar novamente.`, 2000, "warning");
       return;
     }
-
+    if (!title.trim()) {
+      presentToast("O meme precisa de um título!", 2000, "warning");
+      return;
+    }
+    
     setLoading(true);
-
     try {
       const formData = new FormData();
-      // Cria um arquivo com nome fixo e tipo JPEG (o editor exporta JPEG/PNG)
-      const fileForAPI = new File([blobToUpload], "meme-upload.jpg", { type: "image/jpeg" });
-
-      // Adicione outros campos se seu backend exigir (titulo, categoria, etc)
-      formData.append('file', fileForAPI);
-      formData.append('title', 'Meme sem título'); // Título padrão ou implemente um input
-      formData.append('category_id', '1'); // Categoria padrão ou implemente um select
+      formData.append('file', finalBlob, 'meme_upload.jpg');
+      formData.append('title', title);
+      formData.append('category_id', categoryId);
+      formData.append('hashtags', hashtags); 
 
       await api.post('/memes', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      presentToast({
-        message: 'Meme enviado com sucesso!',
-        duration: 3000,
-        color: 'success',
-      });
+      // Update rate limit timestamp
+      localStorage.setItem('lastUploadTime', Date.now().toString());
+
+      presentToast("Meme enviado com sucesso! 🚀", 3000, "success");
+      history.push('/feed');
       
-      // Limpa tudo e volta para o feed
-      closeEditor();
-      history.push('/tabs/feed');
-
+      // Reset
+      setStep('select');
+      setImageSrc(null);
+      setFinalBlob(null);
+      setTitle('');
+      setHashtags('');
     } catch (error) {
-      console.error('Erro no upload:', error);
-       let errorMessage = 'Falha ao enviar o meme. Tente novamente.';
-
-       if (error.response) {
-          // Erro que veio do backend (ex: 400, 500)
-          errorMessage = error.response.data.detail || errorMessage;
-       } else if (error.request) {
-           // Erro de rede (não conseguiu contatar o servidor)
-           errorMessage = 'Erro de conexão. Verifique sua internet.';
-       }
-
-      presentToast({
-        message: errorMessage,
-        duration: 4000,
-        color: 'danger',
-      });
+      console.error(error);
+      const msg = error.response?.data?.detail || "Erro ao enviar.";
+      presentToast(msg, 3000, "danger");
     } finally {
       setLoading(false);
     }
   };
-
-  // --- CSS IN-LINE PARA CORRIGIR OS PROBLEMAS ---
-  // Isso é necessário porque precisamos sobrescrever estilos internos do editor
-  const editorStyles = `
-    /* --- CORREÇÃO 2 e 4: Ocultar qualquer botão/campo de "Cancelar" textual --- */
-    /* Mantém apenas o botão de fechar (X) fornecido por 'withCloseButton' */
-    .FIE_topbar-buttons-wrapper .FIE_cancel-button,
-    .FIE_topbar-buttons-wrapper button[title*="Cancel"],
-    .FIE_topbar-buttons-wrapper button[aria-label*="cancel" i],
-    .FIE_cancel-button,
-    button.FIE_cancel-button {
-      display: none !important;
-      visibility: hidden !important;
-      width: 0 !important;
-      height: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      overflow: hidden !important;
-    }
-
-    /* Garante que o botão Salvar não fique espremido e seja clicável */
-    .FIE_topbar-buttons-wrapper .FIE_save-button,
-    .FIE_save-button,
-    button.FIE_save-button {
-      min-width: 80px;
-      white-space: nowrap;
-      z-index: 200000 !important;
-    }
-
-    /* Força visibilidade do botão de fechar (X) */
-    .FIE_topbar-buttons-wrapper .FIE_close-button,
-    .FIE_close-button,
-    button.FIE_close-button {
-      display: inline-block !important;
-      z-index: 200001 !important;
-    }
-
-    /* Garantir que pontos de toque e cliques alcancem o editor (especialmente em mobile) */
-    .FIE_editor, .FIE_root, .FIE_canvas, .FIE_content {
-      pointer-events: auto !important;
-      touch-action: manipulation !important;
-    }
-
-    /* Força que a barra superior tenha prioridade de toque (evita sobreposição por causa do layout) */
-    .FIE_topbar-buttons-wrapper button {
-      pointer-events: auto !important;
-    }
-  `;
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/tabs/feed" />
+            {step === 'select' ? (
+              <IonBackButton defaultHref="/feed" />
+            ) : (
+              <IonButton onClick={() => setStep('select')}>
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            )}
           </IonButtons>
-          <IonTitle>Criar Meme</IonTitle>
+          <IonTitle>
+            {step === 'select' && 'Novo Meme'}
+            {step === 'decision' && 'Editar?'}
+            {step === 'edit' && 'Editor'}
+            {step === 'details' && 'Detalhes'}
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
 
       <IonContent className="ion-padding upload-content">
-        <style>{editorStyles}</style>
-
-        <IonCard className="upload-card">
-          <IonCardContent className="upload-card-content">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              id="file-upload"
-              style={{ display: 'none' }}
-            />
-            {!isEditing && (
-              <>
-                <IonButton expand="block" color="primary" onClick={() => document.getElementById('file-upload').click()}>
-                  <IonIcon icon={imageOutline} slot="start" />
-                  Selecionar Imagem
-                </IonButton>
-                {imageSrc && (
-                  <>
-                    <IonButton expand="block" color="secondary" onClick={() => handleEditChoice(true)}>
-                      Editar Imagem
-                    </IonButton>
-                    <IonButton expand="block" color="tertiary" onClick={() => handleEditChoice(false)}>
-                      Prosseguir sem Editar
-                    </IonButton>
-                  </>
-                )}
-              </>
-            )}
-
-            <div className="upload-placeholder">
-                <IonIcon icon={cloudUploadOutline} size="large" color="medium" />
-                <p>Escolha uma imagem da sua galeria para começar a editar.</p>
-            </div>
-          </IonCardContent>
-        </IonCard>
-
-        <IonLoading isOpen={loading} message={'Processando e enviando...'} />
-
-        {/* --- EDITOR DE IMAGEM --- */}
-        {isEditing && imageSrc && (
-          <ReactImageEditor
-            includeUI={{
-              loadImage: {
-                path: imageSrc,
-                name: 'Minha Imagem'
-              },
-              theme: '#333',
-              menuBarPosition: 'bottom'
-            }}
-            onSave={handleSave}
-            cssMaxWidth={700}
-            cssMaxHeight={500}
-          />
+        
+        {/* STEP 1: SELECT */}
+        {step === 'select' && (
+           <div className="upload-container">
+             <div className="upload-placeholder">
+               <IonIcon icon={cloudUploadOutline} size="large" />
+               <p>Selecione uma imagem da galeria</p>
+               <input 
+                 type="file" 
+                 accept="image/*" 
+                 id="file-input" 
+                 hidden 
+                 onChange={handleFileChange} 
+               />
+               <IonButton onClick={() => document.getElementById('file-input').click()}>
+                 Escolher Imagem
+               </IonButton>
+             </div>
+           </div>
         )}
+
+        {/* STEP 2: DECISION */}
+        {step === 'decision' && imageSrc && (
+          <div className="upload-container" style={{ textAlign: 'center' }}>
+            <img src={imageSrc} alt="Preview" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '10px' }} />
+            <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <IonButton fill="outline" onClick={handleSkipEdit}>
+                <IonIcon icon={arrowForwardOutline} slot="start" />
+                Não Editar
+              </IonButton>
+              <IonButton onClick={() => setStep('edit')}>
+                <IonIcon icon={createOutline} slot="start" />
+                Editar
+              </IonButton>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: DETAILS */}
+        {step === 'details' && previewUrl && (
+           <div className="upload-container">
+             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <img 
+                  src={previewUrl} 
+                  alt="Final" 
+                  style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '10px', border: '1px solid #333' }} 
+                />
+             </div>
+
+             <IonItem className="custom-input">
+               <IonLabel position="stacked">Título</IonLabel>
+               <IonInput 
+                 placeholder="Quando você..." 
+                 value={title} 
+                 onIonChange={e => setTitle(e.detail.value)} 
+               />
+             </IonItem>
+
+             <IonItem className="custom-input">
+               <IonLabel position="stacked">Categoria</IonLabel>
+               <IonSelect value={categoryId} onIonChange={e => setCategoryId(e.detail.value)}>
+                 {categories.length > 0 ? (
+                   categories.map((cat) => (
+                     <IonSelectOption key={cat.id} value={cat.id.toString()}>
+                       {cat.name}
+                     </IonSelectOption>
+                   ))
+                 ) : (
+                   <IonSelectOption value="1">Carregando...</IonSelectOption>
+                 )}
+               </IonSelect>
+             </IonItem>
+
+             <IonItem className="custom-input">
+               <IonLabel position="stacked">Hashtags</IonLabel>
+               <IonInput 
+                 placeholder="#humor #dev (opcional)" 
+                 value={hashtags} 
+                 onIonChange={e => setHashtags(e.detail.value)} 
+               />
+             </IonItem>
+
+             {/* POST BUTTON WITH TIMER */}
+             <IonButton 
+               expand="block" 
+               onClick={handlePost} 
+               style={{ marginTop: '30px' }}
+               disabled={timeLeft > 0 || loading}
+               color={timeLeft > 0 ? "medium" : "primary"}
+             >
+               {timeLeft > 0 ? (
+                 <>
+                   <IonIcon icon={timeOutline} slot="start" />
+                   Aguarde {formatTime(timeLeft)}
+                 </>
+               ) : (
+                 <>
+                   <IonIcon icon={checkmarkDoneOutline} slot="start" />
+                   Postar
+                 </>
+               )}
+             </IonButton>
+           </div>
+        )}
+
       </IonContent>
+
+      {/* STEP 3: CUSTOM EDITOR - Rendered outside IonContent to avoid z-index/scroll issues */}
+      {step === 'edit' && imageSrc && (
+          <div style={{ 
+            height: '100%', 
+            width: '100%', 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            zIndex: 20000, 
+            background: '#000',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <FabricImageEditor
+              imageUrl={imageSrc}
+              onSave={handleEditorSave}
+              onCancel={() => setStep('decision')}
+            />
+          </div>
+      )}
+
+      <IonLoading isOpen={loading} message="Enviando..." />
     </IonPage>
   );
 };

@@ -15,7 +15,7 @@ A combinação de versões neste projeto é delicada. **Não atualize pacotes se
 *   **UI Framework:** Ionic 8 (`@ionic/react ^8.7.16`)
 *   **Build Tool:** Vite 7
 *   **HTTP Client:** Axios
-*   **Image Editor:** React Filerobot Image Editor (`react-filerobot-image-editor`)
+*   **Image Editor:** Fabric.js (`fabric ^5.3.0`) - *Substituiu react-image-editor*
 *   **⚠️ Roteamento:** `react-router-dom` **v5.3.4**
     *   **NÃO ATUALIZAR PARA v6.**
     *   **Motivo:** O pacote `@ionic/react-router` atual possui dependências estritas (peer dependencies) com a v5. Forçar a v6 causa falha catastrófica na renderização (Tela Preta/Black Screen).
@@ -53,6 +53,24 @@ A combinação de versões neste projeto é delicada. **Não atualize pacotes se
 ### 4. Tratamento de Datas
 *   O backend envia datas em UTC (ex: `2026-01-04T15:00:00`).
 *   O frontend (`src/utils/time.js`) força o sufixo `Z` se necessário para garantir que o navegador converta para o horário local do usuário corretamente.
+
+---
+
+## 🎨 Componentes Críticos: Editor de Imagem (Fabric.js)
+
+O editor de memes (`src/components/ImageEditor/FabricImageEditor.jsx`) possui requisitos específicos para funcionar corretamente dentro do ecossistema React + Ionic:
+
+1.  **Posicionamento no DOM:**
+    *   O componente deve ser renderizado **fora** do `IonContent` mas dentro do `IonPage`.
+    *   Isso evita conflitos de scroll e `z-index` do Ionic, permitindo que o editor funcione como um overlay fixo em tela cheia.
+
+2.  **Ciclo de Vida & Strict Mode:**
+    *   **Problema:** O React Strict Mode inicializa efeitos duas vezes. Se o canvas do Fabric não for descartado corretamente, cria-se uma instância "fantasma" que bloqueia cliques.
+    *   **Solução:** Usar `useRef` para rastrear a instância do canvas e chamar `.dispose()` explicitamente na função de cleanup do `useEffect`.
+
+3.  **Responsividade & Interatividade:**
+    *   **ResizeObserver:** É obrigatório monitorar o container pai para redimensionar o canvas se a janela mudar.
+    *   **`canvas.calcOffset()`:** **CRÍTICO.** Deve ser chamado sempre que o canvas é redimensionado ou inicializado. Sem isso, o Fabric.js perde a referência de onde o ponteiro do mouse está em relação aos objetos (cliques "erram" o alvo).
 
 ---
 

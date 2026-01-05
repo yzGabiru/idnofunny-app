@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton,
   IonAvatar, IonSegment, IonSegmentButton, IonGrid, IonRow, IonCol, IonImg,
@@ -25,7 +25,7 @@ const Profile = () => {
 
   const isMyProfile = !username || username === localStorage.getItem('username');
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const endpoint = username ? `/users/${username}` : '/users/me';
       const res = await api.get(endpoint);
@@ -33,9 +33,9 @@ const Profile = () => {
     } catch (error) {
       console.error("Erro ao carregar perfil", error);
     }
-  };
+  }, [username]);
 
-  const fetchTabContent = async () => {
+  const fetchTabContent = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     try {
@@ -48,7 +48,7 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile, selectedTab]);
 
   const handleFollow = async () => {
     try {
@@ -112,11 +112,11 @@ const Profile = () => {
 
   useEffect(() => {
     fetchProfile();
-  }, [username]);
+  }, [fetchProfile]);
 
   useEffect(() => {
     if (profile) fetchTabContent();
-  }, [selectedTab, profile]);
+  }, [fetchTabContent, profile]);
 
   return (
     <IonPage>

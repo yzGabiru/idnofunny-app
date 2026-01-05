@@ -13,6 +13,7 @@ const CommentsModal = ({ isOpen, onClose, meme, onCommentAdded }) => {
   // Atualiza a lista local sempre que o meme mudar
   useEffect(() => {
     if (meme && meme.comments) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalComments(meme.comments);
     }
   }, [meme]);
