@@ -264,7 +264,7 @@ const Upload = () => {
         {/* --- EDITOR DE IMAGEM --- */}
         {isEditorOpen && imageSrc && (
           <ImageEditor
-            src={imageSrc}
+            image={imageSrc}
             tools={['crop', 'draw', 'shape', 'text']}
             onSave={(blob) => handleSave(blob)}
             style={{
