@@ -95,10 +95,9 @@ const Upload = () => {
   };
 
   // 3. Salvar Edição
-  const handleSave = async (imageState) => {
+  const handleSave = async (blob) => {
     setLoading(true);
     try {
-      const blob = await fetch(imageState.dest).then(res => res.blob());
       setIsEditorOpen(false);
       await handleUpload(blob);
     } catch (error) {
