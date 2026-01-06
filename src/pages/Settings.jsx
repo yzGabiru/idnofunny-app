@@ -13,24 +13,23 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', color: '' });
 
-  const handleDeleteAccount = async (password) => {
+  const handleDeleteAccount = () => {
+    setShowAlert(true);
+  };
+
+  const executeDelete = async (password) => {
     setLoading(true);
     try {
-      // Envia a senha para o backend validar e deletar
       await api.delete('/users/me', { data: { password } });
-      
-      // Limpa tudo e chuta pra fora
       localStorage.clear();
-      history.push('/register');
-      window.location.reload(); 
+      window.location.href = '/login';
     } catch (error) {
       console.error(error);
       setToast({ 
         show: true, 
-        msg: error.response?.data?.detail || "Erro ao deletar conta.", 
+        msg: error.response?.data?.detail || "Erro ao deletar conta. Verifique sua senha.", 
         color: 'danger' 
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -50,7 +49,7 @@ const Settings = () => {
         <IonList style={{ marginTop: '20px' }}>
           
           {/* Item de Deletar Conta */}
-          <IonItem button onClick={() => setShowAlert(true)} lines="full">
+          <IonItem button onClick={handleDeleteAccount} lines="full">
             <IonIcon slot="start" icon={trashOutline} color="danger" />
             <IonLabel color="danger">
               <h2>Deletar Conta</h2>
@@ -65,8 +64,8 @@ const Settings = () => {
         <IonAlert
           isOpen={showAlert}
           onDidDismiss={() => setShowAlert(false)}
-          header={'Tem certeza?'}
-          message={'Para sua segurança, digite sua senha para confirmar a exclusão da conta. Todos os seus memes e likes serão perdidos.'}
+          header={'Cuidado!'}
+          message={'Para sua segurança, digite sua senha para confirmar a exclusão. Seus memes continuarão visíveis, mas seu nome será removido.'}
           inputs={[
             {
               name: 'password',
@@ -81,13 +80,14 @@ const Settings = () => {
               handler: () => console.log('Cancelado')
             },
             {
-              text: 'DELETAR TUDO',
+              text: 'Excluir',
+              role: 'destructive',
               handler: (data) => {
                 if (data.password) {
-                  handleDeleteAccount(data.password);
+                  executeDelete(data.password);
                 } else {
                   setToast({ show: true, msg: "Senha obrigatória", color: "warning" });
-                  return false; // Mantém o alerta aberto se não digitar senha
+                  return false; // Mantém o alerta aberto
                 }
               }
             }

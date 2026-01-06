@@ -67,6 +67,8 @@ const Upload = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const [selectedFile, setSelectedFile] = useState(null);
+
   // Formats seconds into MM:SS
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
@@ -74,24 +76,61 @@ const Upload = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // Cleanups
+  // Safe URL Management Pattern
   useEffect(() => {
+    if (!selectedFile) return;
+
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setImageSrc(objectUrl);
+    setPreviewUrl(objectUrl); // Ensure preview uses valid URL
+
     return () => {
-      if (imageSrc && imageSrc.startsWith('blob:')) URL.revokeObjectURL(imageSrc);
-      if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+      URL.revokeObjectURL(objectUrl);
     };
-  }, [imageSrc, previewUrl]);
+  }, [selectedFile]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (!file.type.startsWith('image/')) {
-        presentToast("Selecione uma imagem válida", 2000, "warning");
+      const isVideo = file.type.startsWith('video/');
+
+      // 1. Validate Size (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        presentToast("Arquivo muito grande! Máximo 50MB.", 3000, "warning");
         return;
       }
-      const url = URL.createObjectURL(file);
-      setImageSrc(url);
-      setStep('decision');
+
+      if (!file.type.startsWith('image/') && !isVideo) {
+        presentToast("Selecione uma imagem ou vídeo válido", 2000, "warning");
+        return;
+      }
+
+      // 2. Validate Video Duration
+      if (isVideo) {
+        const tempUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = function() {
+          window.URL.revokeObjectURL(tempUrl); // Clean up validator URL
+          if (video.duration > 60) {
+            presentToast("Vídeo muito longo! Máximo 60 segundos.", 3000, "warning");
+          } else {
+            // Success: Valid Video
+            setSelectedFile(file); // Triggers useEffect to generate persistent URL
+            setFinalBlob(file); 
+            setStep('details');
+          }
+        };
+        video.onerror = function() {
+           window.URL.revokeObjectURL(tempUrl);
+           presentToast("Erro ao carregar metadados do vídeo.", 2000, "danger");
+        };
+        video.src = tempUrl;
+      } else {
+        // Image Flow
+        setSelectedFile(file); // Triggers useEffect
+        setStep('decision');
+      }
       e.target.value = '';
     }
   };
@@ -128,7 +167,11 @@ const Upload = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('file', finalBlob, 'meme_upload.jpg');
+      // Adjust filename extension based on type
+      const isVideo = finalBlob.type.startsWith('video/');
+      const filename = isVideo ? 'meme_video.mp4' : 'meme_upload.jpg';
+      
+      formData.append('file', finalBlob, filename);
       formData.append('title', title);
       formData.append('category_id', categoryId);
       formData.append('hashtags', hashtags); 
@@ -187,16 +230,16 @@ const Upload = () => {
            <div className="upload-container">
              <div className="upload-placeholder">
                <IonIcon icon={cloudUploadOutline} size="large" />
-               <p>Selecione uma imagem da galeria</p>
+               <p>Selecione uma imagem ou vídeo (max 60s)</p>
                <input 
                  type="file" 
-                 accept="image/*" 
+                 accept="image/*, video/mp4, video/quicktime" 
                  id="file-input" 
                  hidden 
                  onChange={handleFileChange} 
                />
                <IonButton onClick={() => document.getElementById('file-input').click()}>
-                 Escolher Imagem
+                 Escolher Arquivo
                </IonButton>
              </div>
            </div>
@@ -223,11 +266,19 @@ const Upload = () => {
         {step === 'details' && previewUrl && (
            <div className="upload-container">
              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <img 
-                  src={previewUrl} 
-                  alt="Final" 
-                  style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '10px', border: '1px solid #333' }} 
-                />
+                {finalBlob && finalBlob.type.startsWith('video/') ? (
+                  <video 
+                    src={previewUrl} 
+                    controls 
+                    style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '10px', border: '1px solid #333' }}
+                  />
+                ) : (
+                  <img 
+                    src={previewUrl} 
+                    alt="Final" 
+                    style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '10px', border: '1px solid #333' }} 
+                  />
+                )}
              </div>
 
              <IonItem className="custom-input">

@@ -7,20 +7,33 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: radial-gradient(circle at top right, #1a1a2e 0%, #000000 100%);
+  /* Removed radial gradient to ensure pure black as requested, or keep subtle if preferred. 
+     Prompt asked for "black total (#000 or #121212)". I will stick to #000 for safety. */
+  background: #000000; 
+  padding: 0;
+  margin: 0;
+}
+
+/* Remove default ion-content padding if any */
+.auth-page ion-content {
+  --background: #000000;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 /* Container Central (Card) */
 .auth-container {
   width: 100%;
-  max-width: 400px; /* Largura máxima para PC */
+  max-width: 400px;
   margin: 0 auto;
   padding: 40px 30px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   
-  /* Efeito de Vidro Sutil (Opcional, se quiser mais clean use apenas background) */
+  /* Efeito de Vidro Sutil */
   background: rgba(20, 20, 20, 0.6);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -38,9 +51,7 @@
   font-size: 2rem;
   font-weight: 800;
   margin: 0;
-  background: linear-gradient(to right, #fff, #888);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff;
   letter-spacing: -1px;
 }
 
@@ -68,15 +79,15 @@
 }
 
 .custom-input.ion-focused {
-  border-color: #5b4ddb; /* Cor Primária */
+  border-color: #007aff; /* Azul Vibrante */
 }
 
 /* Botão Principal */
 .auth-btn {
   margin-top: 20px;
   --border-radius: 12px;
-  --background: linear-gradient(90deg, #5b4ddb 0%, #8c8aff 100%);
-  --box-shadow: 0 4px 15px rgba(91, 77, 219, 0.3);
+  --background: linear-gradient(90deg, #007aff 0%, #005ecb 100%);
+  --box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
   font-weight: 700;
   letter-spacing: 0.5px;
   height: 50px;
@@ -92,7 +103,7 @@
   height: 50px;
 }
 
-/* Links (Esqueci senha) */
+/* Links */
 .auth-link {
   text-align: right;
   font-size: 0.85rem;
@@ -107,7 +118,7 @@
   text-decoration: underline;
 }
 
-/* Animação de Entrada */
+/* Animação */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -125,10 +136,12 @@
     box-shadow: none;
     padding: 20px;
     max-width: 100%;
+    /* Centralizar verticalmente no mobile também se possível, ou topo */
+    min-height: 100vh;
+    justify-content: center;
   }
   .auth-page {
-    background: #000; /* Fundo sólido no mobile para performance/bateria */
-    align-items: flex-start; /* Joga pro topo */
-    padding-top: 40px;
+    background: #000000;
+    padding-top: 0; /* Remove top padding */
   }
 }

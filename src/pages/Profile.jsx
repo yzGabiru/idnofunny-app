@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
+import {
   IonContent, IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton,
   IonAvatar, IonSegment, IonSegmentButton, IonGrid, IonRow, IonCol, IonImg,
-  IonIcon, IonButton, IonRefresher, IonRefresherContent, IonSpinner, IonToast
+  IonIcon, IonButton, IonRefresher, IonRefresherContent, IonSpinner, IonToast, IonAlert
 } from '@ionic/react';
 import { 
   imagesOutline, heartOutline, chatboxOutline, logOutOutline, personAddOutline, 
@@ -22,6 +22,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
   const [uploading, setUploading] = useState(false); // Estado de carregamento do upload
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
 
   const isMyProfile = !username || username === localStorage.getItem('username');
 
@@ -91,9 +92,12 @@ const Profile = () => {
   };
 
   const handleLogout = () => {
+    setShowLogoutAlert(true);
+  };
+
+  const confirmLogout = () => {
     localStorage.clear();
-    history.push('/login');
-    window.location.reload(); 
+    window.location.href = '/login';
   };
 
   const doRefresh = async (event) => {
@@ -258,36 +262,51 @@ const Profile = () => {
               )}
               
               {selectedTab !== 'comments' ? (
-                // GRADE DE FOTOS
-                items.map((item) => (
-                  <IonCol 
-                    size="4"       
-                    size-md="3"    
-                    key={item.id} 
-                    style={{ padding: '1px' }} 
-                  >
-                    <div 
-                      onClick={() => history.push(`/meme/${item.id}`)}
-                      style={{ 
-                        width: '100%', 
-                        aspectRatio: '1/1',    
-                        position: 'relative', 
-                        backgroundColor: '#222',
-                        overflow: 'hidden',
-                        cursor: 'pointer'
-                      }} 
+                // GRADE DE FOTOS E VIDEOS
+                items.map((item) => {
+                  const isVideo = item.media_type === 'video' || (item.image_url && /\.(mp4|mov|webm)$/i.test(item.image_url));
+                  
+                  return (
+                    <IonCol 
+                      size="4"       
+                      size-md="3"    
+                      key={item.id} 
+                      style={{ padding: '1px' }} 
                     >
-                      <IonImg 
-                        src={`${import.meta.env.VITE_API_BASE_URL}${item.image_url}`} 
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  </IonCol>
-                ))
+                      <div 
+                        onClick={() => history.push(`/meme/${item.id}`)}
+                        style={{ 
+                          width: '100%', 
+                          aspectRatio: '1/1',    
+                          position: 'relative', 
+                          backgroundColor: '#222',
+                          overflow: 'hidden',
+                          cursor: 'pointer'
+                        }} 
+                      >
+                        {isVideo ? (
+                          <video 
+                            src={`${import.meta.env.VITE_API_BASE_URL}${item.image_url}`}
+                            muted
+                            playsInline
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onMouseOver={e => e.target.play()}
+                            onMouseOut={e => e.target.pause()}
+                          />
+                        ) : (
+                          <IonImg 
+                            src={`${import.meta.env.VITE_API_BASE_URL}${item.image_url}`} 
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        )}
+                      </div>
+                    </IonCol>
+                  );
+                })
               ) : (
                 // LISTA DE COMENTÁRIOS
                 items.map((comment) => (
@@ -309,6 +328,26 @@ const Profile = () => {
         <IonToast isOpen={!!toastMessage} message={toastMessage} duration={2000} onDidDismiss={() => setToastMessage('')} />
 
       </IonContent>
+
+      <IonAlert
+        isOpen={showLogoutAlert}
+        onDidDismiss={() => setShowLogoutAlert(false)}
+        header="Sair"
+        message="Tem certeza que deseja sair?"
+        buttons={[
+          {
+            text: 'Não',
+            role: 'cancel',
+            cssClass: 'alert-button-cancel',
+            handler: () => setShowLogoutAlert(false)
+          },
+          {
+            text: 'Sim',
+            cssClass: 'alert-button-confirm',
+            handler: confirmLogout
+          }
+        ]}
+      />
     </IonPage>
   );
 };

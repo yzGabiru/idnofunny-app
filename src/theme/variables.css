@@ -1,27 +1,144 @@
-/* Dark Theme por padrão */
 :root {
-  /* Cor Primária (Um Roxo/Azul vibrante) */
-  --ion-color-primary: #5b4ddb;
-  --ion-color-primary-rgb: 91, 77, 219;
+  /* Azul Vibrante (Estilo iFunny/Twitter) */
+  --ion-color-primary: #007aff;
+  --ion-color-primary-rgb: 0, 122, 255;
   --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #5044c0;
-  --ion-color-primary-tint: #6b5fdf;
+  --ion-color-primary-shade: #006be0;
+  --ion-color-primary-tint: #1a87ff;
 
-  /* Fundo Geral (Dark, mas não preto absoluto para cansar menos a vista) */
-  --ion-background-color: #0f0f0f;
-  --ion-background-color-rgb: 15, 15, 15;
-
-  /* Texto */
+  /* Fundo "Super Dark" */
+  --ion-background-color: #121212;
+  --ion-background-color-rgb: 18, 18, 18;
   --ion-text-color: #ffffff;
   --ion-text-color-rgb: 255, 255, 255;
 
-  /* Cor dos Cards/Items (Um pouco mais claro que o fundo) */
-  --ion-item-background: #1a1a1a;
-  --ion-card-background: #1a1a1a;
+  /* Cartões levemente mais claros */
+  --ion-item-background: #1e1e1e;
+  --ion-card-background: #1e1e1e;
+
+  /* Overlay para modais e alertas */
+  --ion-overlay-background-color: #1e1e1e;
+  --ion-backdrop-color: rgba(0, 0, 0, 0.7);
 }
 
 /* Ajustes globais de fonte e bordas */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Estilos para IonAlert (Popups) - Dark Mode */
+.alert-wrapper.sc-ion-alert-md,
+.alert-wrapper.sc-ion-alert-ios {
+  background: #1e1e1e !important;
+  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.5),
+              0 24px 38px 3px rgba(0, 0, 0, 0.4),
+              0 9px 46px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.alert-head.sc-ion-alert-md,
+.alert-head.sc-ion-alert-ios {
+  background: #1e1e1e !important;
+  padding-top: 20px !important;
+}
+
+.alert-title.sc-ion-alert-md,
+.alert-title.sc-ion-alert-ios {
+  color: #ffffff !important;
+}
+
+.alert-sub-title.sc-ion-alert-md,
+.alert-sub-title.sc-ion-alert-ios,
+.alert-message.sc-ion-alert-md,
+.alert-message.sc-ion-alert-ios {
+  color: #e0e0e0 !important;
+}
+
+.alert-button-group.sc-ion-alert-md,
+.alert-button-group.sc-ion-alert-ios {
+  background: #1e1e1e !important;
+  border-top: 1px solid #333 !important;
+}
+
+.alert-button.sc-ion-alert-md,
+.alert-button.sc-ion-alert-ios {
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+/* Estilos para botões do alerta */
+.alert-button-confirm.sc-ion-alert-md,
+.alert-button-confirm.sc-ion-alert-ios {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.alert-button-cancel.sc-ion-alert-md,
+.alert-button-cancel.sc-ion-alert-ios {
+  color: #007aff !important;
+  font-weight: 600 !important;
+}
+
+/* Estilos para IonActionSheet - Dark Mode */
+.action-sheet-wrapper.sc-ion-action-sheet-md,
+.action-sheet-wrapper.sc-ion-action-sheet-ios {
+  background: #1e1e1e !important;
+}
+
+.action-sheet-group.sc-ion-action-sheet-md,
+.action-sheet-group.sc-ion-action-sheet-ios {
+  background: #1e1e1e !important;
+}
+
+.action-sheet-title.sc-ion-action-sheet-md,
+.action-sheet-title.sc-ion-action-sheet-ios {
+  color: #e0e0e0 !important;
+  background: #1e1e1e !important;
+}
+
+.action-sheet-button.sc-ion-action-sheet-md,
+.action-sheet-button.sc-ion-action-sheet-ios {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+.action-sheet-button.sc-ion-action-sheet-md:hover,
+.action-sheet-button.sc-ion-action-sheet-ios:hover {
+  background: #2a2a2a !important;
+}
+
+.action-sheet-destructive.sc-ion-action-sheet-md,
+.action-sheet-destructive.sc-ion-action-sheet-ios {
+  color: #ff4444 !important;
+}
+
+.action-sheet-cancel.sc-ion-action-sheet-md,
+.action-sheet-cancel.sc-ion-action-sheet-ios {
+  background: #252525 !important;
+}
+
+/* Estilos para IonModal - Dark Mode */
+ion-modal {
+  --background: #1e1e1e !important;
+}
+
+.modal-wrapper {
+  background: #1e1e1e !important;
+}
+
+/* Estilos para IonToast - Dark Mode */
+ion-toast {
+  --background: #2a2a2a !important;
+  --color: #ffffff !important;
+  --button-color: #007aff !important;
+}
+
+/* Força modo escuro em todos os componentes overlay */
+.dark {
+  --ion-overlay-background-color: #1e1e1e;
+}
+
+ion-alert.alert-wrapper,
+ion-action-sheet.action-sheet-wrapper {
+  --ion-background-color: #1e1e1e;
+  --ion-text-color: #ffffff;
 }

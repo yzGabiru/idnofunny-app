@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
-import { 
-  IonContent, IonPage, IonInput, IonButton, IonIcon, 
-  IonLoading, IonToast, IonLabel 
+import React, { useState, useEffect } from 'react';
+import {
+  IonContent, IonPage, IonInput, IonButton, IonIcon,
+  IonLoading, IonToast, IonLabel
 } from '@ionic/react';
 import { logInOutline, personAddOutline, lockClosedOutline, mailOutline } from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import '../styles/Auth.css'; // <--- Importando CSS Novo
 
 const Login = () => {
   const history = useHistory();
+  const location = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [warningMessage, setWarningMessage] = useState('');
+
+  // Detecta se foi redirecionado de uma rota protegida - apenas uma vez na montagem
+  useEffect(() => {
+    if (location.state?.message) {
+      setWarningMessage(location.state.message);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -46,7 +56,7 @@ const Login = () => {
         <div className="auth-container auth-animate">
           
           <div className="auth-header">
-            <h1>IDNOFunny</h1>
+            <h1>IDNO<span style={{ color: '#007aff' }}>Funny</span></h1>
             <p>Bem-vindo de volta! 👋</p>
           </div>
 
@@ -98,6 +108,13 @@ const Login = () => {
 
         <IonLoading isOpen={loading} message="Entrando..." />
         <IonToast isOpen={!!error} message={error} duration={3000} color="danger" onDidDismiss={() => setError('')} />
+        <IonToast
+          isOpen={!!warningMessage}
+          message={warningMessage}
+          duration={4000}
+          color="warning"
+          onDidDismiss={() => setWarningMessage('')}
+        />
       </IonContent>
     </IonPage>
   );

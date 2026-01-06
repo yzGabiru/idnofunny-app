@@ -40,7 +40,12 @@ import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
 
 /* Inicializa o Ionic */
-setupIonicReact();
+setupIonicReact({
+  mode: 'md' // Força modo Material Design para melhor controle de estilos
+});
+
+// Força modo escuro globalmente
+document.body.classList.add('dark');
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

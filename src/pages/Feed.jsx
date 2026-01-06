@@ -1,23 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  IonContent, IonPage, IonHeader, IonToolbar, 
-  IonButton, IonIcon, IonButtons, 
+import {
+  IonContent, IonPage, IonHeader, IonToolbar,
+  IonButton, IonIcon, IonButtons,
   useIonViewWillEnter, IonPopover, IonList, IonItem, IonLabel,
-  IonAvatar // <--- Importado
+  IonAvatar, IonSpinner, IonModal, IonAlert
 } from '@ionic/react';
 import { 
-  personCircleOutline, menuOutline, cloudUploadOutline, settingsOutline, logOutOutline,
-  chevronBackOutline, chevronForwardOutline 
+  menuOutline, cloudUploadOutline, settingsOutline, logOutOutline,
+  personCircleOutline,
+  caretDownOutline, checkmarkOutline, closeOutline,
+  chevronBackOutline, chevronForwardOutline
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import api from '../services/api';
 import MemeSlide from '../components/MemeSlide';
+import CommentsModal from '../components/CommentsModal';
 import '../styles/Feed.css';
 
 const Feed = () => {
   const history = useHistory();
   const [memes, setMemes] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null); // <--- NOVO: Estado do usuário logado
+  const [currentUser, setCurrentUser] = useState(null); 
+  const [feedType, setFeedType] = useState('new'); 
+  const [loading, setLoading] = useState(false);
   
   const observerRef = useRef(null);
   const containerRef = useRef(null);
@@ -26,15 +31,47 @@ const Feed = () => {
   const [showPopover, setShowPopover] = useState(false);
   const [popoverEvent, setPopoverEvent] = useState(null);
 
-  // 1. Busca os Memes
-  const fetchMemes = async () => {
-    try {
-      const response = await api.get('/memes');
-      setMemes(response.data);
-    } catch (error) { console.error(error); }
+  const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const [filterPopoverEvent, setFilterPopoverEvent] = useState(null);
+
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+
+  // --- COMMENTS MODAL STATE ---
+  const [selectedMemeId, setSelectedMemeId] = useState(null);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+
+  const handleOpenComments = (memeId) => {
+    setSelectedMemeId(memeId);
+    setIsCommentsOpen(true);
   };
 
-  // 2. Busca o Usuário (Para pegar a foto) <--- NOVO
+  // --- NAVIGATION (DESKTOP) ---
+  const scrollPrev = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollBy({ left: -window.innerWidth, behavior: 'smooth' });
+    }
+  };
+
+  const scrollNext = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+    }
+  };
+
+  // 1. Busca os Memes
+  const fetchMemes = async () => {
+    setLoading(true); 
+    try {
+      const response = await api.get(`/memes?sort=${feedType}`);
+      setMemes(response.data);
+    } catch (error) { 
+      console.error(error); 
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Busca o Usuário (Para pegar a foto)
   const fetchMe = async () => {
     try {
       const res = await api.get('/users/me');
@@ -44,13 +81,19 @@ const Feed = () => {
     }
   };
 
-  // Carrega tudo ao entrar na tela
+  useEffect(() => {
+    setMemes([]); 
+    if (containerRef.current) {
+       containerRef.current.scrollTo({ left: 0, behavior: 'auto' });
+    }
+    fetchMemes();
+  }, [feedType]);
+
   useIonViewWillEnter(() => { 
     fetchMemes();
-    fetchMe(); // <--- Chamamos aqui também
+    fetchMe();
   });
 
-  // Lógica do Observer (Views)
   useIonViewWillEnter(() => {
     if (observerRef.current) observerRef.current.disconnect();
     observerRef.current = new IntersectionObserver((entries) => {
@@ -67,35 +110,6 @@ const Feed = () => {
     }, 500);
   });
 
-  // --- NAVEGAÇÃO MANUAL (Setas) ---
-  const scrollFeed = (direction) => {
-    if (containerRef.current) {
-      const container = containerRef.current;
-      const width = container.clientWidth; 
-      const currentScroll = container.scrollLeft;
-      
-      const newPosition = direction === 'next' 
-        ? currentScroll + width 
-        : currentScroll - width;
-
-      container.scrollTo({
-        left: newPosition,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  // --- EVENTOS DE TECLADO ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowRight') scrollFeed('next');
-      if (e.key === 'ArrowLeft') scrollFeed('prev');
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const handleLike = async (id) => {
     try {
       const response = await api.post(`/memes/${id}/like`);
@@ -107,7 +121,7 @@ const Feed = () => {
     } catch (error) { console.error(error); }
   };
 
-  const handleFollowUpdate = (targetUsername, newStatus) => {
+  const handleFollow = (targetUsername, newStatus) => {
     setMemes(prevMemes => prevMemes.map(meme => {
       if (meme.owner_username === targetUsername) {
         return { ...meme, owner_is_following: newStatus };
@@ -122,13 +136,22 @@ const Feed = () => {
     setShowPopover(true);
   };
 
-  // Helper para decidir qual foto mostrar <--- NOVO
   const getMyAvatar = () => {
     if (currentUser?.avatar_url) {
       return `${import.meta.env.VITE_API_BASE_URL}${currentUser.avatar_url}`;
     }
     const name = currentUser?.username || 'User';
     return `https://ui-avatars.com/api/?name=${name}&background=random&color=fff`;
+  };
+
+  const handleLogout = () => {
+    setShowPopover(false);
+    setShowLogoutAlert(true);
+  };
+
+  const confirmLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
   };
 
   return (
@@ -141,35 +164,61 @@ const Feed = () => {
             </IonButton>
           </IonButtons>
           
-          {/* --- AQUI ESTÁ A MUDANÇA NO HEADER --- */}
-          <IonButtons slot="end">
-            <IonButton onClick={() => history.push('/profile')} color="light">
-              {currentUser ? (
-                // Se carregou o usuário, mostra o Avatar
-                <IonAvatar style={{ width: '32px', height: '32px', border: '1px solid #fff' }}>
-                  <img 
-                    src={getMyAvatar()} 
-                    alt="Perfil" 
-                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-                  />
-                </IonAvatar>
-              ) : (
-                // Fallback enquanto carrega
-                <IonIcon icon={personCircleOutline} size="large" />
-              )}
-            </IonButton>
-          </IonButtons>
-
+          {/* --- CENTRAL TITLE DROPDOWN --- */}
+          <div 
+             style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}
+             onClick={(e) => {
+               e.persist();
+               setFilterPopoverEvent(e);
+               setShowFilterPopover(true);
+             }}
+          >
+            <span style={{ fontWeight: 900, fontSize: '1.2rem', letterSpacing: '1px', color: '#fff' }}>idno</span>
+            <span style={{ fontWeight: 900, fontSize: '1.2rem', letterSpacing: '1px', color: '#007aff' }}>funny</span>
+            <IonIcon icon={caretDownOutline} size="small" style={{ marginLeft: '5px', color: '#fff' }} />
+          </div>
+          
+          <IonButtons slot="end" style={{ width: '48px' }}></IonButtons>
         </IonToolbar>
       </IonHeader>
 
+      {/* --- FILTER POPOVER --- */}
+      <IonPopover
+        isOpen={showFilterPopover}
+        event={filterPopoverEvent}
+        onDidDismiss={() => setShowFilterPopover(false)}
+        className="filter-popover"
+        style={{ '--width': '200px' }}
+      >
+        <IonList>
+          <IonItem button onClick={() => { setFeedType('new'); setShowFilterPopover(false); }}>
+            <IonLabel style={{ fontWeight: feedType === 'new' ? 'bold' : 'normal' }}>
+           Descobrir🔎
+            </IonLabel>
+            {feedType === 'new' && <IonIcon slot="end" icon={checkmarkOutline} />}
+          </IonItem>
+          <IonItem button onClick={() => { setFeedType('top'); setShowFilterPopover(false); }}>
+             <IonLabel style={{ fontWeight: feedType === 'top' ? 'bold' : 'normal' }}>
+               Top Memes🔥
+             </IonLabel>
+             {feedType === 'top' && <IonIcon slot="end" icon={checkmarkOutline} />}
+          </IonItem>
+        </IonList>
+      </IonPopover>
+
+      {/* MENU LATERAL (Popover) */}
       <IonPopover 
         isOpen={showPopover} 
         event={popoverEvent} 
         onDidDismiss={() => setShowPopover(false)}
         className="custom-popover"
       >
-        <IonList>
+        <IonList style={{ background: '#1e1e1e' }}>
+          {/* Perfil movido para cá */}
+          <IonItem button onClick={() => { setShowPopover(false); history.push('/profile'); }}>
+             <IonIcon slot="start" icon={personCircleOutline} color="primary" />
+             <IonLabel>Meu Perfil</IonLabel>
+          </IonItem>
           <IonItem button onClick={() => { setShowPopover(false); history.push('/upload'); }}>
             <IonIcon slot="start" icon={cloudUploadOutline} />
             <IonLabel>Postar Meme</IonLabel>
@@ -178,40 +227,86 @@ const Feed = () => {
             <IonIcon slot="start" icon={settingsOutline} />
             <IonLabel>Configurações</IonLabel>
           </IonItem>
-          <IonItem button onClick={() => { 
-             localStorage.clear(); 
-             history.push('/login'); 
-             window.location.reload(); // Force reload para limpar estados
-             setShowPopover(false);
-          }}>
+          <IonItem button onClick={handleLogout}>
             <IonIcon slot="start" icon={logOutOutline} color="danger" />
             <IonLabel color="danger">Sair</IonLabel>
           </IonItem>
         </IonList>
       </IonPopover>
 
-      <div className="desktop-nav-btn nav-prev" onClick={() => scrollFeed('prev')}>
-        <IonIcon icon={chevronBackOutline} />
+      {/* --- DESKTOP NAVIGATION ARROWS --- */}
+      <div className="desktop-nav-btn prev" onClick={scrollPrev}>
+        <IonIcon icon={chevronBackOutline} size="large" />
       </div>
-      <div className="desktop-nav-btn nav-next" onClick={() => scrollFeed('next')}>
-        <IonIcon icon={chevronForwardOutline} />
+      <div className="desktop-nav-btn next" onClick={scrollNext}>
+        <IonIcon icon={chevronForwardOutline} size="large" />
       </div>
 
+      {/* CONTEÚDO DO FEED (Horizontal) */}
       <IonContent scrollX={true} scrollY={false} className="horizontal-feed">
-        <div className="feed-track" ref={containerRef}>
-          {memes.map((meme) => (
-            <MemeSlide 
-              key={meme.id} 
-              meme={meme} 
-              onLike={handleLike}
-              onFollowToggle={handleFollowUpdate} 
-              goToDetails={(id) => history.push(`/meme/${id}`)}
-              goToProfile={(e, u) => { e.stopPropagation(); history.push(`/users/${u}`); }}
-              currentUserId={currentUserId}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <IonSpinner name="crescent" color="light" />
+          </div>
+        ) : (
+          <div className="feed-track" ref={containerRef}>
+            {memes.map((meme) => (
+              <MemeSlide 
+                key={meme.id} 
+                meme={meme} 
+                onLike={handleLike}
+                onFollowToggle={handleFollow} 
+                goToDetails={(id) => history.push(`/meme/${id}`)}
+                goToProfile={(e, username) => {
+                  e.stopPropagation();
+                  history.push(`/users/${username}`);
+                }}
+                openCommentsModal={handleOpenComments}
+                currentUserId={currentUserId}
+              />
+            ))}
+          </div>
+        )}
       </IonContent>
+
+      {/* --- SWIPE UP COMMENTS MODAL --- */}
+      <IonModal 
+        isOpen={isCommentsOpen} 
+        onDidDismiss={() => setIsCommentsOpen(false)}
+        initialBreakpoint={1} 
+        breakpoints={[0, 1]} 
+        className="comments-sheet-modal"
+      >
+         <CommentsModal 
+            memeId={selectedMemeId} 
+            onCommentAdded={(id, comments) => {
+               setMemes(prev => prev.map(m => m.id === id ? { ...m, comments } : m));
+            }}
+            currentUser={currentUser}
+            onClose={() => setIsCommentsOpen(false)}
+         />
+      </IonModal>
+
+      <IonAlert
+        isOpen={showLogoutAlert}
+        onDidDismiss={() => setShowLogoutAlert(false)}
+        header="Sair"
+        message="Tem certeza que deseja sair?"
+        buttons={[
+          {
+            text: 'Não',
+            role: 'cancel',
+            cssClass: 'alert-button-cancel',
+            handler: () => setShowLogoutAlert(false)
+          },
+          {
+            text: 'Sim',
+            cssClass: 'alert-button-confirm',
+            handler: confirmLogout
+          }
+        ]}
+      />
+
     </IonPage>
   );
 };
